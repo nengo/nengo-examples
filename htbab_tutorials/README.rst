@@ -16,7 +16,7 @@ They were adapted by Sugandha Sharma.
 Requirements
 ============
 
-You will Python with the following packages installed:
+You will need Python installed with the following packages:
 
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
 - `nengo <http://pythonhosted.org/nengo/getting_started.html#installation>`_
