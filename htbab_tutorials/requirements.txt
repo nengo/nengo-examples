@@ -1,0 +1,2 @@
+jupyter
+nengo_gui
