@@ -43,7 +43,7 @@ Requirements
 You will need Python installed with the following packages:
 
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
-- `nengo>=2.3.0 <http://pythonhosted.org/nengo/getting_started.html#installation>`_
+- `nengo>=2.3.0 <https://www.nengo.ai/nengo/getting_started.html>`_
 
 Usage
 =====
@@ -58,6 +58,6 @@ License
 
 This example is copyright Applied Brain Research
 and is licensed with the
-`Nengo license <http://pythonhosted.org/nengo/license.html>`_,
+`Nengo license <https://www.nengo.ai/nengo/license.html>`_,
 which permits using, copying, sharing, and making derivative works
 for any non-commercial purpose.

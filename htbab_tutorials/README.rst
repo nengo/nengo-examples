@@ -19,7 +19,7 @@ Requirements
 You will need Python installed with the following packages:
 
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
-- `nengo <http://pythonhosted.org/nengo/getting_started.html#installation>`_
+- `nengo <https://www.nengo.ai/nengo/getting_started.html>`_
 - `nengo_gui <https://github.com/nengo/nengo_gui#installation>`_
 
 Usage
