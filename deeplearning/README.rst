@@ -11,6 +11,7 @@ Requirements
 You will need Python installed with the following packages:
 
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
+- `matplotlib <https://matplotlib.org/users/installing.html>`_
 - `nengo_dl>=0.5.1 <https://www.nengo.ai/nengo_dl/installation.html>`_
 
 Usage
