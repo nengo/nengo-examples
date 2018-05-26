@@ -1,0 +1,4 @@
+matplotlib
+nengo>=2.3
+nengo-dl>=0.5.1
+-e git+git://github.com/nengo/nengo-gui.git@jupyter-tunnel#egg=nengo_gui

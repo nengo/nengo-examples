@@ -1,0 +1,1 @@
+jupyter serverextension enable nengo_gui.jupyter
