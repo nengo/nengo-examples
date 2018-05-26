@@ -1,3 +1,5 @@
+.. image:: https://mybinder.org/badge.svg :target: https://mybinder.org/v2/gh/nengo/nengo-examples/master
+
 **************
 Nengo examples
 **************
