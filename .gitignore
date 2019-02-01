@@ -12,3 +12,12 @@ log.txt
 .cache
 .tox
 *.class
+
+# --- Saved Tensorflow params
+checkpoint
+*.index
+*.meta
+*.data-*-of-*
+
+# --- Example specific
+cifar-10-python.tar.gz
