@@ -7,7 +7,7 @@ notifications:
 env:
   global:
     - STATIC="false"
-    - CONDA_DEPS="jupyter matplotlib numpy"
+    - CONDA_DEPS="jupyter tornado==5.1.1 matplotlib numpy"
     - PIP_DEPS="pytest nengo"
 
 matrix:
