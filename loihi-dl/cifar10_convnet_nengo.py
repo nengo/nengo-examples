@@ -47,7 +47,7 @@ def has_checkpoint(checkpoint_base):
     return len(files) > 0
 
 
-max_rate = 100
+max_rate = 150
 amp = 1.0 / max_rate
 # rate_reg = 1e-2
 rate_reg = 1e-3
@@ -56,21 +56,23 @@ rate_target = max_rate * amp  # must be in amplitude scaled units
 # max_rate = 1
 # amp = 1.0
 
-lif = nengo.LIFRate(amplitude=amp)
-relu = nengo.RectifiedLinear(amplitude=amp)
+lif = nengo.LIF(amplitude=amp)
+relu = nengo.SpikingRectifiedLinear(amplitude=amp)
+# lif = nengo_dl.neurons.SoftLIFRate(amplitude=amp, sigma=0.01)
+# relu = nengo.RectifiedLinear(amplitude=amp)
 
 layer_confs = [
     dict(n_filters=4, kernel_size=1, strides=1, neuron_type=relu, on_chip=False),
-    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
-    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, on_chip=True),
-    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
-    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, on_chip=True),
-    dict(n_filters=64, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
-    dict(n_filters=96, kernel_size=3, strides=1, neuron_type=relu, on_chip=True),
-    dict(n_filters=128, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
-    dict(n_filters=128, kernel_size=1, strides=1, neuron_type=relu, on_chip=True),
-    # dict(n_neurons=20, neuron_type=lif, on_chip=True),
-    dict(n_neurons=20, neuron_type=relu, on_chip=True),
+    dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
+    dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, on_chip=True),
+    dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
+    dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, on_chip=True),
+    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
+    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=relu, on_chip=True),
+    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
+    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=relu, on_chip=True),
+    dict(n_neurons=20, neuron_type=lif, on_chip=True),
+    # dict(n_neurons=20, neuron_type=relu, on_chip=True),
     dict(n_neurons=10, neuron_type=None, on_chip=False),
 ]
 
@@ -99,11 +101,12 @@ with nengo.Network() as net:
     nengo_dl.configure_settings(stateful=False)
 
     nengo_dl.configure_settings(lif_smoothing=0.01)
+    # nengo_dl.configure_settings(lif_smoothing=0.2)
 
     nengo_loihi.add_params(net)  # allow setting on_chip
 
     # the input node that will be used to feed in input images
-    inp = nengo.Node([0] * input_shape.size, label="input")
+    inp = nengo.Node([0] * input_shape.size, label="input_node")
 
     connections = []
     transforms = []
@@ -137,8 +140,7 @@ with nengo.Network() as net:
                 kernel_size=kernel_size,
                 strides=strides,
                 padding="valid",
-                # init=nengo_dl.dists.Glorot(scale=1. / np.prod(kernel_size)),
-                init=nengo_dl.dists.Glorot(scale=0.1 / np.prod(kernel_size)),
+                init=nengo_dl.dists.Glorot(scale=1.0 / np.prod(kernel_size)),
             )
             shape_out = transform.output_shape
         else:
@@ -183,10 +185,8 @@ test_t = np.array(tf.one_hot(test_y, n_classes), dtype=np.float32)
 train_x = train_x.astype(np.float32) / 127.5 - 1
 test_x = test_x.astype(np.float32) / 127.5 - 1
 
-assert train_x[0].shape == input_shape.shape
+assert train_x[0].shape == test_x[0].shape == input_shape.shape
 
-# train_x_flat = train_x.reshape((train_x.shape[0], 1, -1))
-# train_t_flat = train_t.reshape((train_t.shape[0], 1, -1))
 train_x_flat = train_x.reshape((train_x.shape[0], 1, -1))
 train_t_flat = train_t.reshape((train_t.shape[0], 1, -1))
 
@@ -194,7 +194,10 @@ test_x_flat = test_x.reshape((test_x.shape[0], 1, -1))
 test_t_flat = test_t.reshape((test_t.shape[0], 1, -1))
 
 # --- evaluate layers
-with nengo_dl.Simulator(net, minibatch_size=100, progress_bar=False) as sim:
+# use rate neurons always by setting learning_phase_scope
+with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
+    net, minibatch_size=100, progress_bar=False
+) as sim:
     for k, conn in enumerate(connections):
         weights = sim.model.sig[conn]["weights"].initial_value
         print("Layer %d initial weights: %0.3f" % (k, np.abs(weights).mean()))
@@ -218,24 +221,12 @@ batch_size = 256
 #     horizontal_flip=True,
 # )
 # train_idg.fit(train_x)
-# train_idg_flow = train_idg.flow(train_x, train_y, batch_size=batch_size)
+# train_idg_flow = train_idg.flow(train_x, train_t, batch_size=batch_size)
 
-# def train_generator():
-#     # yield (50000 // batch_size) * np.ones((batch_size, 1))
-
-#     for x, y in train_idg_flow:
-#         x = tf.reshape(x, (x.shape[0], 1, -1))
-#         y = tf.reshape(y, (y.shape[0], 1, -1))
-#         yield (x, y)
-
-
-def print_layer_rates(sim, layer_probes):
-    for probe in layer_probes:
-        rates = sim.data[probe]
-        print("%r rates: mean %0.3f" % (probe.target, rates.mean()))
-
-
-with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
+# use rate neurons always by setting learning_phase_scope
+with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
+    net, minibatch_size=batch_size
+) as sim:
     if 0:
         # if has_checkpoint(checkpoint_base):
         sim.load_params(checkpoint_base)
@@ -268,7 +259,7 @@ with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
                 losses[probe] = partial(
                     percentile_l2_loss_range,
                     weight=rate_reg,
-                    min=0.75 * rate_target,
+                    min=0.5 * rate_target,
                     max=rate_target,
                     percentile=99.9,
                 )
@@ -284,16 +275,18 @@ with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
         sim.compile(
             loss=losses,
             # loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-            optimizer=tf.optimizers.Adam(),
-            # optimizer=tf.optimizers.RMSprop(0.001),
+            # optimizer=tf.optimizers.Adam(),
+            optimizer=tf.optimizers.RMSprop(0.001),
             metrics=metrics,
         )
 
-        # # --- run on test data
-        # test_inputs = {inp: test_x_flat}
-        # test_targets = {output_p: test_t_flat}
-        # for probe in layer_probes:
-        #     test_targets[probe] = np.zeros((test_t_flat.shape[0], 1, 0), dtype=np.float32)
+        # --- run on test data
+        test_inputs = {inp: test_x_flat}
+        test_targets = {output_p: test_t_flat}
+        for probe in layer_probes:
+            test_targets[probe] = np.zeros(
+                (test_t_flat.shape[0], 1, 0), dtype=np.float32
+            )
 
         # with tf.keras.backend.learning_phase_scope(1):
         #     outputs = sim.evaluate(x=test_inputs, y=test_targets)
@@ -326,7 +319,7 @@ with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
         #     # print("Test error after training: %.2f%%" %
         #     #       sim.loss(test_inputs, test_targets, classification_error))
 
-        # sim.save_params(checkpoint_base)
+        sim.save_params(checkpoint_base)
 
     # ann_test_preds = None
     # try:
