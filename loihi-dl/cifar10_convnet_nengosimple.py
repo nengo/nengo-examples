@@ -36,6 +36,8 @@ with nengo.Network(seed=0) as net:
 
     net.config[nengo.Connection].synapse = None
 
+    nengo_dl.configure_settings(keep_history=True)
+
     # this is an optimization to improve the training speed,
     # since we won't require stateful behaviour in this example
     # (copied from MNIST example)
@@ -101,6 +103,10 @@ with nengo.Network(seed=0) as net:
             net.config[ens].on_chip = on_chip
             y = ens.neurons
 
+            probe = nengo.Probe(y, synapse=None, label="%s_p" % name)
+            net.config[probe].keep_history = False
+            layer_probes.append(probe)
+
         conn = nengo.Connection(x, y, transform=transform, synapse=None)
 
         transforms.append(transform)
@@ -145,8 +151,8 @@ for k, layer_probe in enumerate(layer_probes):
 batch_size = 256
 
 with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
-    losses = tf.losses.CategoricalCrossentropy(from_logits=True)
-    metrics = ["accuracy"]
+    losses = {output_p: tf.losses.CategoricalCrossentropy(from_logits=True)}
+    metrics = {output_p: "accuracy"}
 
     sim.compile(
         loss=losses,
@@ -157,7 +163,7 @@ with nengo_dl.Simulator(net, minibatch_size=batch_size) as sim:
 
     # --- train
     train_inputs = {inp: train_x_flat}
-    train_targets = train_t_flat
+    train_targets = {output_p: train_t_flat}
 
     # sim.fit(x=train_inputs, y=train_targets, epochs=1)
     sim.fit(x=train_inputs, y=train_targets, epochs=10)
