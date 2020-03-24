@@ -1,3 +1,4 @@
+import collections
 from functools import partial
 import os
 
@@ -9,6 +10,110 @@ import tensorflow_probability as tfp
 import nengo
 import nengo_dl
 import nengo_loihi
+
+
+class NengoImageIterator(tf.keras.preprocessing.image.Iterator):
+    def __init__(
+        self,
+        image_data_generator,
+        x_keys,
+        x,
+        y_keys,
+        y,
+        batch_size=32,
+        shuffle=False,
+        sample_weight=None,
+        seed=None,
+        subset=None,
+        dtype="float32",
+    ):
+        assert subset is None, "Not Implemented"
+        assert isinstance(x_keys, (tuple, list))
+        assert isinstance(y_keys, (tuple, list))
+        assert isinstance(x, (tuple, list))
+        assert isinstance(y, (tuple, list))
+
+        self.dtype = dtype
+        self.x_keys = x_keys
+        self.y_keys = y_keys
+
+        x0 = x[0]
+        assert all(len(xx) == len(x0) for xx in x), (
+            "All of the arrays in `x` should have the same length. "
+            "Found a pair with: len(x[0]) = %s, len(x[?]) = %s" % (len(x0), len(xx))
+        )
+        assert all(len(yy) == len(x0) for yy in y), (
+            "All of the arrays in `y` should have the same length as `x`. "
+            "Found one with: len(x[0]) = %s, len(y[?]) = %s" % (len(x0), len(yy))
+        )
+        assert len(x_keys) == len(x)
+        assert len(y_keys) == len(y)
+
+        if sample_weight is not None and len(x0) != len(sample_weight):
+            raise ValueError(
+                "`x[0]` (images tensor) and `sample_weight` "
+                "should have the same length. "
+                "Found: x.shape = %s, sample_weight.shape = %s"
+                % (np.asarray(x0).shape, np.asarray(sample_weight).shape)
+            )
+
+        self.x = [
+            np.asarray(xx, dtype=self.dtype if i == 0 else None)
+            for i, xx in enumerate(x)
+        ]
+        if self.x[0].ndim != 4:
+            raise ValueError(
+                "Input data in `NumpyArrayIterator` "
+                "should have rank 4. You passed an array "
+                "with shape",
+                self.x[0].shape,
+            )
+
+        self.y = [np.asarray(yy) for yy in y]
+        self.sample_weight = (
+            None if sample_weight is None else np.asarray(sample_weight)
+        )
+        self.image_data_generator = image_data_generator
+        super().__init__(self.x[0].shape[0], batch_size, shuffle, seed)
+
+    def _get_batches_of_transformed_samples(self, index_array):
+        images = self.x[0]
+        assert images.dtype == self.dtype
+
+        n = len(index_array)
+        batch_x = np.zeros((n,) + images[0].shape, dtype=self.dtype)
+        for i, j in enumerate(index_array):
+            x = images[j]
+            params = self.image_data_generator.get_random_transform(x.shape)
+            x = self.image_data_generator.apply_transform(x, params)
+            x = self.image_data_generator.standardize(x)
+            batch_x[i] = x
+
+        batch_x_miscs = [xx[index_array] for xx in self.x[1:]]
+        batch_y_miscs = [yy[index_array] for yy in self.y]
+
+        x_pairs = [
+            (k, self.x_postprocess(k, v))
+            for k, v in zip(self.x_keys, [batch_x] + batch_x_miscs)
+        ]
+        y_pairs = [
+            (k, self.y_postprocess(k, v)) for k, v in zip(self.y_keys, batch_y_miscs)
+        ]
+
+        output = (
+            collections.OrderedDict(x_pairs),
+            collections.OrderedDict(y_pairs),
+        )
+
+        if self.sample_weight is not None:
+            output += (self.sample_weight[index_array],)
+        return output
+
+    def x_postprocess(self, key, x):
+        return x if key == "n_steps" else x.reshape((x.shape[0], 1, -1))
+
+    def y_postprocess(self, key, y):
+        return y.reshape((y.shape[0], 1, -1))
 
 
 def percentile_l2_loss(
@@ -118,6 +223,7 @@ with nengo.Network() as net:
         on_chip = layer_conf.pop("on_chip", True)
         name = layer_conf.pop("name", "layer%d" % k)
 
+        # --- create layer transform
         if "n_filters" in layer_conf:
             # convolutional layer
             n_filters = layer_conf.pop("n_filters")
@@ -143,6 +249,12 @@ with nengo.Network() as net:
                 init=nengo_dl.dists.Glorot(scale=1.0 / np.prod(kernel_size)),
             )
             shape_out = transform.output_shape
+
+            n_weights = np.prod(transform.kernel_shape)
+            print(
+                "%s: conv %s, stride %s, output %s (%d weights)"
+                % (name, kernel_size, strides, shape_out.shape, n_weights)
+            )
         else:
             # dense layer
             n_neurons = layer_conf.pop("n_neurons")
@@ -155,6 +267,12 @@ with nengo.Network() as net:
                 (shape_out.size, shape_in.size), init=nengo_dl.dists.Glorot(),
             )
 
+            print(
+                "%s: dense %d, output %s (%d weights)"
+                % (name, n_neurons, shape_out.shape, np.prod(transform.shape))
+            )
+
+        # --- create layer output (Ensemble or Node)
         if neuron_type is None:
             assert not on_chip, "Nodes can only be run off-chip"
             y = nengo.Node(size_in=shape_out.size, label=name)
@@ -163,11 +281,12 @@ with nengo.Network() as net:
             net.config[ens].on_chip = on_chip
             y = ens.neurons
 
+            # add a probe so we can measure individual layer rates
             probe = nengo.Probe(y, synapse=None, label="%s_p" % name)
             net.config[probe].keep_history = False
             layer_probes.append(probe)
 
-        conn = nengo.Connection(x, y, transform=transform, synapse=None)
+        conn = nengo.Connection(x, y, transform=transform)
 
         transforms.append(transform)
         connections.append(conn)
@@ -209,19 +328,18 @@ for k, layer_probe in enumerate(layer_probes):
     print("Layer %d initial rates: %0.3f" % (k, np.mean(out)))
 
 # --- train network in NengoDL
-checkpoint_base = "./cifar10_convnet_params"
+checkpoint_base = "./cifar10_convnet_nengo_params"
 
 batch_size = 256
 
-# train_idg = tf.keras.preprocessing.image.ImageDataGenerator(
-#     width_shift_range=0.1,
-#     height_shift_range=0.1,
-#     rotation_range=20,
-#     # shear_range=0.1,
-#     horizontal_flip=True,
-# )
-# train_idg.fit(train_x)
-# train_idg_flow = train_idg.flow(train_x, train_t, batch_size=batch_size)
+train_idg = tf.keras.preprocessing.image.ImageDataGenerator(
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    # rotation_range=20,
+    # shear_range=0.1,
+    horizontal_flip=True,
+)
+train_idg.fit(train_x)
 
 # use rate neurons always by setting learning_phase_scope
 with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
@@ -275,8 +393,8 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
         sim.compile(
             loss=losses,
             # loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-            # optimizer=tf.optimizers.Adam(),
-            optimizer=tf.optimizers.RMSprop(0.001),
+            optimizer=tf.optimizers.Adam(),
+            # optimizer=tf.optimizers.RMSprop(0.001),
             metrics=metrics,
         )
 
@@ -288,67 +406,45 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
                 (test_t_flat.shape[0], 1, 0), dtype=np.float32
             )
 
-        # with tf.keras.backend.learning_phase_scope(1):
-        #     outputs = sim.evaluate(x=test_inputs, y=test_targets)
-
-        # # print_layer_rates(sim, layer_probes)
-
         # --- train
-        train_inputs = {inp: train_x_flat}
-        train_targets = {output_p: train_t_flat}
-        for probe in layer_probes:
-            train_targets[probe] = np.zeros(
-                (train_t_flat.shape[0], 1, 0), dtype=np.float32
-            )
-
-        # sim.fit(x=train_inputs, y=train_targets, epochs=1)
-        sim.fit(x=train_inputs, y=train_targets, epochs=10)
-
-        # print_layer_rates(sim, layer_probes)
+        steps_per_epoch = len(train_x) // batch_size
+        n = steps_per_epoch * batch_size
+        n_steps = np.ones((n, 1), dtype=np.int32)
+        train_data = NengoImageIterator(
+            image_data_generator=train_idg,
+            x_keys=[inp.label, "n_steps"],
+            x=[train_x[:n], n_steps],
+            y_keys=[output_p.label] + [probe.label for probe in layer_probes],
+            y=[train_t[:n]]
+            + [np.zeros((n, 1, 0), dtype=np.float32) for _ in layer_probes],
+            batch_size=batch_size,
+            shuffle=True,
+        )
 
         # n_epochs = 30
-        # # optimizer = tf.train.RMSPropOptimizer(learning_rate=0.001)
-        # for _ in range(n_epochs):
-        #     # train_augmented = {
-        #     #     inp: shifter.augment(X_train).reshape(X_train.shape[0], 1, -1)}
+        n_epochs = 200
 
-        #     sim.fit(train_x_flat, train_t_flat, epochs=1)
-        #     # sim.fit(train_generator(), n_steps=(50000 // batch_size), epochs=1)
-        #     # sim.fit(train_generator(), steps_per_epoch=(50000 // batch_size), epochs=1)
+        for epoch in range(n_epochs):
+            sim.fit(
+                train_data, steps_per_epoch=steps_per_epoch, epochs=1, verbose=2,
+            )
 
-        #     # print("Test error after training: %.2f%%" %
-        #     #       sim.loss(test_inputs, test_targets, classification_error))
+            outputs = sim.evaluate(x=test_inputs, y=test_targets, verbose=0)
+            print("Epoch %d test: %s" % (epoch, outputs))
 
-        sim.save_params(checkpoint_base)
+            # print("Test error after training: %.2f%%" %
+            #       sim.loss(test_inputs, test_targets, classification_error))
 
-    # ann_test_preds = None
-    # try:
-    #     print("Train error after training: %.2f%%" %
-    #           sim.loss(train_inputs, train_targets, classification_error))
-    #     print("Test error after training: %.2f%%" %
-    #           sim.loss(test_inputs, test_targets, classification_error))
+            # savefile = "%s_%d" % (checkpoint_base, epoch)
+            savefile = checkpoint_base
+            sim.save_params(savefile)
+            print("Saved params to %r" % savefile)
 
-    #     mini_test_inputs = {
-    #         inp: shifter.center(X_test[:minibatch_size]).reshape(
-    #             minibatch_size, 1, -1)}
-    #     ann_test_outs = get_outputs(sim, mini_test_inputs, out_p)
-    #     ann_test_preds = np.argmax(ann_test_outs[:, 0, :], axis=-1)
+    try:
+        train_outputs = sim.evaluate(x=train_inputs, y=train_targets, verbose=0)
+        print("Final train: %s" % (epoch, train_outputs))
 
-    #     rates = get_layer_rates(sim, rate_inputs, rate_probes.values(),
-    #                             amplitude=amp)
-    #     for layer_func, rate in zip(rate_probes, rates):
-    #         print("%s rate: mean=%0.3f, 99th: %0.3f" % (
-    #             layer_func, rate.mean(), np.percentile(rate, 99)))
-
-    #     # compute output range
-    #     outs = get_outputs(sim, rate_inputs, out_p)
-    #     print("Output range: min=%0.3f, 1st=%0.3f, 99th=%0.3f, max=%0.3f" % (
-    #         outs.min(), np.percentile(outs, 1), np.percentile(outs, 99),
-    #         outs.max()))
-    #     ann_out_min = np.percentile(outs, 1)
-    #     ann_out_max = np.percentile(outs, 99)
-    # except Exception:
-    #     print("Could not compute ANN values on this machine")
-
-    #     ann_out_min = default_ann_out_min
-    #     ann_out_max = default_ann_out_max
+        test_outputs = sim.evaluate(x=test_inputs, y=test_targets, verbose=0)
+        print("Final test: %s" % (epoch, test_outputs))
+    except Exception as e:
+        print("Could not compute ANN values on this machine: %s" % e)
