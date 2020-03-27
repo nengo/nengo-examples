@@ -40,11 +40,12 @@ class NengoImageIterator(tf.keras.preprocessing.image.Iterator):
         x0 = x[0]
         assert all(len(xx) == len(x0) for xx in x), (
             "All of the arrays in `x` should have the same length. "
-            "Found a pair with: len(x[0]) = %s, len(x[?]) = %s" % (len(x0), len(xx))
+            "[len(xx) for xx in x] = %s" % ([len(xx) for xx in x],)
         )
         assert all(len(yy) == len(x0) for yy in y), (
             "All of the arrays in `y` should have the same length as `x`. "
-            "Found one with: len(x[0]) = %s, len(y[?]) = %s" % (len(x0), len(yy))
+            "len(x[0]) = %d, [len(yy) for yy in y] = %s"
+            % (len(x0), [len(yy) for yy in y])
         )
         assert len(x_keys) == len(x)
         assert len(y_keys) == len(y)
@@ -152,6 +153,36 @@ def has_checkpoint(checkpoint_base):
     return len(files) > 0
 
 
+# --- load dataset
+channels_last = True
+# channels_last = False
+
+(train_x, train_y), (test_x, test_y) = tf.keras.datasets.cifar10.load_data()
+if not channels_last:
+    train_x = np.transpose(train_x, (0, 3, 1, 2))
+    test_x = np.transpose(test_x, (0, 3, 1, 2))
+
+n_classes = 10
+train_t = np.array(tf.one_hot(train_y, n_classes), dtype=np.float32)
+test_t = np.array(tf.one_hot(test_y, n_classes), dtype=np.float32)
+
+train_y = train_y.squeeze()
+test_y = test_y.squeeze()
+
+train_x = train_x.astype(np.float32) / 127.5 - 1
+test_x = test_x.astype(np.float32) / 127.5 - 1
+
+input_shape = nengo.transforms.ChannelShape(test_x[0].shape, channels_last=channels_last)
+assert input_shape.n_channels in (1, 3)
+assert train_x[0].shape == test_x[0].shape == input_shape.shape
+
+train_x_flat = train_x.reshape((train_x.shape[0], 1, -1))
+train_t_flat = train_t.reshape((train_t.shape[0], 1, -1))
+
+test_x_flat = test_x.reshape((test_x.shape[0], 1, -1))
+test_t_flat = test_t.reshape((test_t.shape[0], 1, -1))
+
+# --- create Nengo network
 max_rate = 150
 amp = 1.0 / max_rate
 # rate_reg = 1e-2
@@ -168,15 +199,35 @@ relu = nengo.SpikingRectifiedLinear(amplitude=amp)
 
 layer_confs = [
     dict(n_filters=4, kernel_size=1, strides=1, neuron_type=relu, on_chip=False),
-    dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
-    dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, on_chip=True),
-    dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, on_chip=True),
-    dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, on_chip=True),
+
+    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
+    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
+    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
+    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+
+    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(8, 8, 8)),
+    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, block=(8, 8, 8)),
+    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
+    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+
+    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
+    # dict(n_filters=64, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
+    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
+    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+
+    dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
+    dict(n_filters=72, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
+    dict(n_filters=256, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 16)),
+    dict(n_filters=256, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 28)),
+    dict(n_filters=64, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 28)),
+
     # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
     # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=relu, on_chip=True),
     # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
     # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=relu, on_chip=True),
-    dict(n_neurons=20, neuron_type=lif, on_chip=True),
+
+    dict(n_neurons=100, neuron_type=lif, block=(50,)),
+    # dict(n_neurons=100, neuron_type=lif, block=(10,)),
     # dict(n_neurons=20, neuron_type=relu, on_chip=True),
     dict(n_neurons=10, neuron_type=None, on_chip=False),
 ]
@@ -186,7 +237,8 @@ layer_confs = [
 #     dict(n_neurons=10, neuron_type=None, on_chip=False),
 # ]
 
-input_shape = nengo.transforms.ChannelShape((32, 32, 3), channels_last=True)
+presentation_time = 0.2
+present_images = nengo.processes.PresentInput(test_x_flat, presentation_time)
 
 with nengo.Network() as net:
     net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([max_rate])
@@ -211,7 +263,7 @@ with nengo.Network() as net:
     nengo_loihi.add_params(net)  # allow setting on_chip
 
     # the input node that will be used to feed in input images
-    inp = nengo.Node([0] * input_shape.size, label="input_node")
+    inp = nengo.Node(present_images, label="input_node")
 
     connections = []
     transforms = []
@@ -221,6 +273,7 @@ with nengo.Network() as net:
     for k, layer_conf in enumerate(layer_confs):
         neuron_type = layer_conf.pop("neuron_type")
         on_chip = layer_conf.pop("on_chip", True)
+        block = layer_conf.pop("block", None)
         name = layer_conf.pop("name", "layer%d" % k)
 
         # --- create layer transform
@@ -246,6 +299,7 @@ with nengo.Network() as net:
                 kernel_size=kernel_size,
                 strides=strides,
                 padding="valid",
+                channels_last=channels_last,
                 init=nengo_dl.dists.Glorot(scale=1.0 / np.prod(kernel_size)),
             )
             shape_out = transform.output_shape
@@ -273,6 +327,8 @@ with nengo.Network() as net:
             )
 
         # --- create layer output (Ensemble or Node)
+        assert on_chip or block is None, "`block` must be None if off-chip"
+
         if neuron_type is None:
             assert not on_chip, "Nodes can only be run off-chip"
             y = nengo.Node(size_in=shape_out.size, label=name)
@@ -281,12 +337,18 @@ with nengo.Network() as net:
             net.config[ens].on_chip = on_chip
             y = ens.neurons
 
+            if block is not None:
+                net.config[ens].block_shape = nengo_loihi.BlockShape(
+                    block, shape_out.shape,
+                )
+
             # add a probe so we can measure individual layer rates
             probe = nengo.Probe(y, synapse=None, label="%s_p" % name)
             net.config[probe].keep_history = False
             layer_probes.append(probe)
 
         conn = nengo.Connection(x, y, transform=transform)
+        net.config[conn].pop_type = 16
 
         transforms.append(transform)
         connections.append(conn)
@@ -295,22 +357,20 @@ with nengo.Network() as net:
 
     output_p = nengo.Probe(x, synapse=None, label="output_p")
 
-# --- load dataset
-(train_x, train_y), (test_x, test_y) = tf.keras.datasets.cifar10.load_data()
-n_classes = 10
-train_t = np.array(tf.one_hot(train_y, n_classes), dtype=np.float32)
-test_t = np.array(tf.one_hot(test_y, n_classes), dtype=np.float32)
+# define input and target dictionaries to pass to Nengo
+train_inputs = {inp: train_x_flat}
+train_targets = {output_p: train_t_flat}
 
-train_x = train_x.astype(np.float32) / 127.5 - 1
-test_x = test_x.astype(np.float32) / 127.5 - 1
+test_inputs = {inp: test_x_flat}
+test_targets = {output_p: test_t_flat}
+for probe in layer_probes:
+    train_targets[probe] = np.zeros((train_t_flat.shape[0], 1, 0), dtype=np.float32)
+    test_targets[probe] = np.zeros((test_t_flat.shape[0], 1, 0), dtype=np.float32)
 
-assert train_x[0].shape == test_x[0].shape == input_shape.shape
 
-train_x_flat = train_x.reshape((train_x.shape[0], 1, -1))
-train_t_flat = train_t.reshape((train_t.shape[0], 1, -1))
+def slice_data_dict(data, slice):
+    return {key: value[slice] for key, value in data.items()}
 
-test_x_flat = test_x.reshape((test_x.shape[0], 1, -1))
-test_t_flat = test_t.reshape((test_t.shape[0], 1, -1))
 
 # --- evaluate layers
 # use rate neurons always by setting learning_phase_scope
@@ -338,74 +398,61 @@ train_idg = tf.keras.preprocessing.image.ImageDataGenerator(
     # rotation_range=20,
     # shear_range=0.1,
     horizontal_flip=True,
+    data_format="channels_last" if channels_last else "channels_first",
 )
 train_idg.fit(train_x)
 
-# use rate neurons always by setting learning_phase_scope
+use rate neurons always by setting learning_phase_scope
 with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
     net, minibatch_size=batch_size
 ) as sim:
-    if 0:
-        # if has_checkpoint(checkpoint_base):
-        sim.load_params(checkpoint_base)
-    else:
 
-        def dummy_loss(y_true, y_pred):
-            return 1.1
+    percentile = 99.9
 
-        def rate_metric(_, outputs):
-            return outputs
-            # print(_.shape)
-            # print(outputs.shape)
-            # return outputs.mean()
+    def rate_metric(_, outputs):
+        # return outputs
+        # return tf.reduce_mean(outputs)
 
-        losses = {output_p: tf.losses.CategoricalCrossentropy(from_logits=True)}
-        metrics = {output_p: "accuracy"}
+        # take percentile over all examples, for each neuron
+        top_rates = tfp.stats.percentile(outputs, percentile, axis=(0, 1))
+        return tf.reduce_mean(top_rates) / amp
 
-        for probe, layer_conf in zip(layer_probes, layer_confs):
-            metrics[probe] = rate_metric
-            # losses[probe] = dummy_loss
+    losses = {output_p: tf.losses.CategoricalCrossentropy(from_logits=True)}
+    metrics = {output_p: "accuracy"}
 
-            # losses[probe] = partial(
-            #     percentile_l2_loss,
-            #     weight=rate_reg,
-            #     target=rate_target,
-            #     percentile=99.9,
-            # )
+    for probe, layer_conf in zip(layer_probes, layer_confs):
+        metrics[probe] = rate_metric
 
-            if layer_conf.get("on_chip", True):
-                losses[probe] = partial(
-                    percentile_l2_loss_range,
-                    weight=rate_reg,
-                    min=0.5 * rate_target,
-                    max=rate_target,
-                    percentile=99.9,
-                )
-            else:
-                losses[probe] = partial(
-                    percentile_l2_loss_range,
-                    weight=10 * rate_reg,
-                    min=0,
-                    max=rate_target,
-                    percentile=99.9,
-                )
-
-        sim.compile(
-            loss=losses,
-            # loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-            optimizer=tf.optimizers.Adam(),
-            # optimizer=tf.optimizers.RMSprop(0.001),
-            metrics=metrics,
-        )
-
-        # --- run on test data
-        test_inputs = {inp: test_x_flat}
-        test_targets = {output_p: test_t_flat}
-        for probe in layer_probes:
-            test_targets[probe] = np.zeros(
-                (test_t_flat.shape[0], 1, 0), dtype=np.float32
+        if layer_conf.get("on_chip", True):
+            losses[probe] = partial(
+                percentile_l2_loss_range,
+                weight=rate_reg,
+                min=0.5 * rate_target,
+                max=rate_target,
+                percentile=percentile,
+            )
+        else:
+            losses[probe] = partial(
+                percentile_l2_loss_range,
+                weight=10 * rate_reg,
+                min=0,
+                max=rate_target,
+                percentile=percentile,
             )
 
+    sim.compile(
+        loss=losses,
+        # loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
+        optimizer=tf.optimizers.Adam(),
+        # optimizer=tf.optimizers.RMSprop(0.001),
+        metrics=metrics,
+    )
+
+    if has_checkpoint(checkpoint_base):
+        sim.load_params(checkpoint_base)
+        print("Loaded params %r" % checkpoint_base)
+
+    else:
         # --- train
         steps_per_epoch = len(train_x) // batch_size
         n = steps_per_epoch * batch_size
@@ -441,10 +488,42 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
             print("Saved params to %r" % savefile)
 
     try:
-        train_outputs = sim.evaluate(x=train_inputs, y=train_targets, verbose=0)
-        print("Final train: %s" % (epoch, train_outputs))
+        train_slice = slice(0, 1000)
+        train_outputs = sim.evaluate(
+            x=slice_data_dict(train_inputs, train_slice),
+            y=slice_data_dict(train_targets, train_slice),
+            verbose=0,
+        )
+        print("Final train: %s" % (train_outputs,))
 
-        test_outputs = sim.evaluate(x=test_inputs, y=test_targets, verbose=0)
-        print("Final test: %s" % (epoch, test_outputs))
+        # test_slice = slice(None)
+        test_slice = slice(0, 1000)
+        test_outputs = sim.evaluate(
+            x=slice_data_dict(test_inputs, test_slice),
+            y=slice_data_dict(test_targets, test_slice),
+            verbose=0,
+        )
+        print("Final test: %s" % (test_outputs,))
     except Exception as e:
         print("Could not compute ANN values on this machine: %s" % e)
+
+
+n_presentations = 2
+
+with nengo_loihi.Simulator(net) as sim:
+    sim.run(n_presentations * presentation_time)
+
+pres_steps = int(presentation_time / sim.dt)
+class_steps = 0.3 * pres_steps
+
+class_output = sim.data[output_p]
+class_output = class_output.reshape((n_presentations, steps_per_pres, -1))
+class_output = class_output[:, -class_steps:].mean(axis=1)
+preds = np.argmax(axis=-1)
+
+assert preds.shape == test_y[:n_presentations].shape
+
+print("Predictions: %s" % (list(preds),))
+print("Actual:      %s" % (list(test_y[:n_presentations]),))
+error = (preds != test_y[:n_presentations]).mean()
+print("Accuracy: %0.3f%%, Error: %0.3f%%" % (100 - 100 * error, 100 * error))
