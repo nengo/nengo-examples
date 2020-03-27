@@ -172,7 +172,9 @@ test_y = test_y.squeeze()
 train_x = train_x.astype(np.float32) / 127.5 - 1
 test_x = test_x.astype(np.float32) / 127.5 - 1
 
-input_shape = nengo.transforms.ChannelShape(test_x[0].shape, channels_last=channels_last)
+input_shape = nengo.transforms.ChannelShape(
+    test_x[0].shape, channels_last=channels_last
+)
 assert input_shape.n_channels in (1, 3)
 assert train_x[0].shape == test_x[0].shape == input_shape.shape
 
@@ -493,6 +495,9 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
             sim.save_params(savefile)
             print("Saved params to %r" % savefile)
 
+    # copy the learned/loaded parameters back to the network, for Loihi simulator
+    sim.freeze_params(net)
+
     try:
         train_slice = slice(0, 1000)
         train_outputs = sim.evaluate(
@@ -513,19 +518,38 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
     except Exception as e:
         print("Could not compute ANN values on this machine: %s" % e)
 
+n_presentations = 10
+# n_presentations = 2
 
-n_presentations = 2
+for probe in layer_probes:
+    # make layer probes integrative
+    probe.synapse = nengo.synapses.LinearFilter([1], [1, 0])
+
+for conn in net.all_connections:
+    conn.synapse = nengo.synapses.Lowpass(0.01)
+
+sim_time = n_presentations * presentation_time
+
+# with nengo_dl.Simulator(net) as sim:
+#     sim.run(sim_time)
 
 with nengo_loihi.Simulator(net) as sim:
-    sim.run(n_presentations * presentation_time)
+    sim.run(sim_time)
+
+for i, probe in enumerate(layer_probes):
+    rates = sim.data[probe].mean(axis=0) / (sim_time * amp)
+    print(
+        "Layer %d: rate (mean across %d examples) mean %0.3f, max %0.3f"
+        % (i, n_presentations, rates.mean(), rates.max())
+    )
 
 pres_steps = int(presentation_time / sim.dt)
-class_steps = 0.3 * pres_steps
+class_steps = int(0.3 * pres_steps)
 
-class_output = sim.data[output_p]
-class_output = class_output.reshape((n_presentations, steps_per_pres, -1))
-class_output = class_output[:, -class_steps:].mean(axis=1)
-preds = np.argmax(axis=-1)
+output = sim.data[output_p]
+output = output.reshape((n_presentations, pres_steps) + output[0].shape)
+output = output[:, -class_steps:].mean(axis=1)
+preds = np.argmax(output, axis=-1)
 
 assert preds.shape == test_y[:n_presentations].shape
 
