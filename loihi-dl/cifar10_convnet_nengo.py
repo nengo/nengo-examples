@@ -224,7 +224,7 @@ layer_confs = [
 
     dict(filters=64, kernel_size=3, strides=2, neuron=chip_neuron, block=(16, 16, 4)),
     dict(filters=72, kernel_size=3, strides=1, neuron=chip_neuron, block=(16, 16, 4)),
-    dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 16)),
+    dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 12)),
     dict(filters=256, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
     dict(filters=64, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
 
