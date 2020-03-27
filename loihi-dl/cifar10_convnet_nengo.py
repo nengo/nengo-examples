@@ -149,7 +149,7 @@ def has_checkpoint(checkpoint_base):
         return False
 
     files = os.listdir(checkpoint_dir)
-    files = [f for f in files if f.startswith(checkpoint_name)]
+    files = [f for f in files if f == checkpoint_name + ".npz"]
     return len(files) > 0
 
 
@@ -192,49 +192,54 @@ rate_target = max_rate * amp  # must be in amplitude scaled units
 # max_rate = 1
 # amp = 1.0
 
-lif = nengo.LIF(amplitude=amp)
 relu = nengo.SpikingRectifiedLinear(amplitude=amp)
+# chip_neuron = nengo_loihi.neurons.LoihiSpikingRectifiedLinear(amplitude=amp)
+chip_neuron = nengo_loihi.neurons.LoihiLIF(amplitude=amp)
+
+# lif = nengo.LIF(amplitude=amp)
+# relu = nengo.SpikingRectifiedLinear(amplitude=amp)
+
 # lif = nengo_dl.neurons.SoftLIFRate(amplitude=amp, sigma=0.01)
 # relu = nengo.RectifiedLinear(amplitude=amp)
 
 layer_confs = [
-    dict(n_filters=4, kernel_size=1, strides=1, neuron_type=relu, on_chip=False),
+    dict(filters=4, kernel_size=1, strides=1, neuron=relu, on_chip=False),
 
-    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
-    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
-    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
-    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(16, 16, 4)),
+    # dict(filters=96, kernel_size=3, strides=1, neuron=lif, block=(16, 16, 4)),
+    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
+    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
 
-    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(8, 8, 8)),
-    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=lif, block=(8, 8, 8)),
-    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
-    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(8, 8, 8)),
+    # dict(filters=96, kernel_size=3, strides=1, neuron=lif, block=(8, 8, 8)),
+    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
+    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
 
-    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
-    # dict(n_filters=64, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
-    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 8)),
-    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 8)),
+    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(16, 16, 4)),
+    # dict(filters=64, kernel_size=3, strides=1, neuron=lif, block=(16, 16, 4)),
+    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
+    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
 
-    dict(n_filters=64, kernel_size=3, strides=2, neuron_type=lif, block=(16, 16, 4)),
-    dict(n_filters=72, kernel_size=3, strides=1, neuron_type=lif, block=(16, 16, 4)),
-    dict(n_filters=256, kernel_size=3, strides=2, neuron_type=lif, block=(6, 6, 16)),
-    dict(n_filters=256, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 28)),
-    dict(n_filters=64, kernel_size=1, strides=1, neuron_type=lif, block=(6, 6, 28)),
+    dict(filters=64, kernel_size=3, strides=2, neuron=chip_neuron, block=(16, 16, 4)),
+    dict(filters=72, kernel_size=3, strides=1, neuron=chip_neuron, block=(16, 16, 4)),
+    dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 16)),
+    dict(filters=256, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
+    dict(filters=64, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
 
-    # dict(n_filters=64, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
-    # dict(n_filters=96, kernel_size=3, strides=1, neuron_type=relu, on_chip=True),
-    # dict(n_filters=128, kernel_size=3, strides=2, neuron_type=relu, on_chip=True),
-    # dict(n_filters=128, kernel_size=1, strides=1, neuron_type=relu, on_chip=True),
+    # dict(filters=64, kernel_size=3, strides=2, neuron=relu, on_chip=True),
+    # dict(filters=96, kernel_size=3, strides=1, neuron=relu, on_chip=True),
+    # dict(filters=128, kernel_size=3, strides=2, neuron=relu, on_chip=True),
+    # dict(filters=128, kernel_size=1, strides=1, neuron=relu, on_chip=True),
 
-    dict(n_neurons=100, neuron_type=lif, block=(50,)),
-    # dict(n_neurons=100, neuron_type=lif, block=(10,)),
-    # dict(n_neurons=20, neuron_type=relu, on_chip=True),
-    dict(n_neurons=10, neuron_type=None, on_chip=False),
+    dict(n_neurons=100, neuron=chip_neuron, block=(50,)),
+    # dict(n_neurons=100, neuron=lif, block=(10,)),
+    # dict(n_neurons=20, neuron=relu, on_chip=True),
+    dict(n_neurons=10, neuron=None, on_chip=False),
 ]
 
 # layer_confs = [
-#     dict(n_filters=4, kernel_size=1, strides=1, neuron_type=relu, on_chip=False),
-#     dict(n_neurons=10, neuron_type=None, on_chip=False),
+#     dict(filters=4, kernel_size=1, strides=1, neuron=relu, on_chip=False),
+#     dict(n_neurons=10, neuron=None, on_chip=False),
 # ]
 
 presentation_time = 0.2
@@ -271,15 +276,15 @@ with nengo.Network() as net:
     shape_in = input_shape
     x = inp
     for k, layer_conf in enumerate(layer_confs):
-        neuron_type = layer_conf.pop("neuron_type")
+        neuron_type = layer_conf.pop("neuron")
         on_chip = layer_conf.pop("on_chip", True)
         block = layer_conf.pop("block", None)
         name = layer_conf.pop("name", "layer%d" % k)
 
         # --- create layer transform
-        if "n_filters" in layer_conf:
+        if "filters" in layer_conf:
             # convolutional layer
-            n_filters = layer_conf.pop("n_filters")
+            n_filters = layer_conf.pop("filters")
             kernel_size = layer_conf.pop("kernel_size")
             strides = layer_conf.pop("strides", 1)
             assert len(layer_conf) == 0, "Unused fields in conv layer: %s" % list(
@@ -395,14 +400,14 @@ batch_size = 256
 train_idg = tf.keras.preprocessing.image.ImageDataGenerator(
     width_shift_range=0.1,
     height_shift_range=0.1,
-    # rotation_range=20,
+    rotation_range=20,
     # shear_range=0.1,
     horizontal_flip=True,
     data_format="channels_last" if channels_last else "channels_first",
 )
 train_idg.fit(train_x)
 
-use rate neurons always by setting learning_phase_scope
+# use rate neurons always by setting learning_phase_scope
 with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
     net, minibatch_size=batch_size
 ) as sim:
@@ -469,7 +474,8 @@ with tf.keras.backend.learning_phase_scope(1), nengo_dl.Simulator(
         )
 
         # n_epochs = 30
-        n_epochs = 200
+        n_epochs = 100
+        # n_epochs = 200
 
         for epoch in range(n_epochs):
             sim.fit(
