@@ -207,31 +207,17 @@ chip_neuron = nengo_loihi.neurons.LoihiLIF(amplitude=amp)
 layer_confs = [
     dict(filters=4, kernel_size=1, strides=1, neuron=relu, on_chip=False),
 
-    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(16, 16, 4)),
-    # dict(filters=96, kernel_size=3, strides=1, neuron=lif, block=(16, 16, 4)),
-    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
-    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
+    # dict(filters=64, kernel_size=3, strides=2, neuron=chip_neuron, block=(16, 16, 4)),
+    # dict(filters=72, kernel_size=3, strides=1, neuron=chip_neuron, block=(16, 16, 4)),
+    # dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 12)),
+    # dict(filters=256, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 12)),
+    # dict(filters=64, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 8)),
 
-    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(8, 8, 8)),
-    # dict(filters=96, kernel_size=3, strides=1, neuron=lif, block=(8, 8, 8)),
-    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
-    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
-
-    # dict(filters=64, kernel_size=3, strides=2, neuron=lif, block=(16, 16, 4)),
-    # dict(filters=64, kernel_size=3, strides=1, neuron=lif, block=(16, 16, 4)),
-    # dict(filters=128, kernel_size=3, strides=2, neuron=lif, block=(6, 6, 8)),
-    # dict(filters=128, kernel_size=1, strides=1, neuron=lif, block=(6, 6, 8)),
-
-    dict(filters=64, kernel_size=3, strides=2, neuron=chip_neuron, block=(16, 16, 4)),
-    dict(filters=72, kernel_size=3, strides=1, neuron=chip_neuron, block=(16, 16, 4)),
-    dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 12)),
-    dict(filters=256, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
-    dict(filters=64, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 28)),
-
-    # dict(filters=64, kernel_size=3, strides=2, neuron=relu, on_chip=True),
-    # dict(filters=96, kernel_size=3, strides=1, neuron=relu, on_chip=True),
-    # dict(filters=128, kernel_size=3, strides=2, neuron=relu, on_chip=True),
-    # dict(filters=128, kernel_size=1, strides=1, neuron=relu, on_chip=True),
+    dict(filters=64, kernel_size=3, strides=2, neuron=chip_neuron, block=(8, 8, 8)),
+    dict(filters=72, kernel_size=3, strides=1, neuron=chip_neuron, block=(7, 7, 8)),
+    dict(filters=256, kernel_size=3, strides=2, neuron=chip_neuron, block=(6, 6, 8)),
+    dict(filters=256, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 24)),
+    dict(filters=64, kernel_size=1, strides=1, neuron=chip_neuron, block=(6, 6, 24)),
 
     dict(n_neurons=100, neuron=chip_neuron, block=(50,)),
     # dict(n_neurons=100, neuron=lif, block=(10,)),
@@ -355,7 +341,7 @@ with nengo.Network() as net:
             layer_probes.append(probe)
 
         conn = nengo.Connection(x, y, transform=transform)
-        net.config[conn].pop_type = 16
+        net.config[conn].pop_type = 32
 
         transforms.append(transform)
         connections.append(conn)
@@ -534,6 +520,17 @@ sim_time = n_presentations * presentation_time
 #     sim.run(sim_time)
 
 with nengo_loihi.Simulator(net) as sim:
+# with nengo_loihi.Simulator(net, precompute=False, hardware_options={"snip_max_spikes_per_step": 2500}) as sim:
+    for block in sim.model.blocks:
+        n_output_axons = sum(a.axon_slots() for a in block.axons)
+        n_input_axons = sum(s.n_axons for s in block.synapses)
+        synapse_bits = sum(s.bits() for s in block.synapses)
+        print("Block %s: %d compartments, %d input axons, %d output axons, %d bits synapse mem"
+              % (block, block.compartment.n_compartments, n_input_axons, n_output_axons, synapse_bits)
+        )
+
+    print("%d blocks" % len(sim.model.blocks))
+
     sim.run(sim_time)
 
 for i, probe in enumerate(layer_probes):
