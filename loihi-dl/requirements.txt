@@ -1,7 +1,6 @@
+nengo
+nengo-dl
+nengo-loihi
 jupyter
 matplotlib
-tensorflow-gpu==1.12.0
-nengo==2.8.0
-nengo-dl==1.2.1
-nengo-extras==0.3.0
-nengo-loihi==0.5.0
+tensorflow-probability
