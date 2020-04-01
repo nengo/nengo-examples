@@ -1,7 +1,7 @@
-jupyter
-matplotlib
-tensorflow-gpu==1.12.0
-nengo==2.8.0
-nengo-dl==1.2.1
-nengo-extras==0.3.0
-git+https://github.com/nengo/nengo-loihi.git
+jupyter==1.0.0
+matplotlib==3.2.1
+nengo==3.0.0
+nengo-dl==3.2.0
+# nengo-loihi==1.0.0
+tensorflow==2.1.0
+tensorflow-probability==0.9.0
