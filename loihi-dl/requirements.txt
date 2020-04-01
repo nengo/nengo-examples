@@ -1,6 +1,6 @@
 nengo
 nengo-dl
-nengo-loihi
+nengo-loihi>=1.0.0
 jupyter
 matplotlib
 tensorflow-probability
