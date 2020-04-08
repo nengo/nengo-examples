@@ -15,22 +15,25 @@ channels_last = True
 
 (train_x, train_y), (test_x, test_y) = tf.keras.datasets.cifar10.load_data()
 
+# test_x = test_x[:10]
+# test_x = test_x[10:20]
+# test_x = test_x[2:6]
+# test_x = test_x[2:4]
+# test_x = test_x[0:4]
+
+# --- this input causes problems
+test_x = test_x[0:1]
+
+# --- this input does not cause problems
+# test_x = test_x[1:2]
+
 # q = 10
 # q = 16
 # q = 17
-# train_x = train_x[:, :q, :q, :]
 # test_x = test_x[:, :q, :q, :]
 
 if not channels_last:
-    train_x = np.transpose(train_x, (0, 3, 1, 2))
     test_x = np.transpose(test_x, (0, 3, 1, 2))
-
-n_classes = 10
-train_t = np.array(tf.one_hot(train_y, n_classes), dtype=np.float32)
-test_t = np.array(tf.one_hot(test_y, n_classes), dtype=np.float32)
-
-train_y = train_y.squeeze()
-test_y = test_y.squeeze()
 
 train_x = train_x.astype(np.float32) / 127.5 - 1
 test_x = test_x.astype(np.float32) / 127.5 - 1
@@ -44,13 +47,9 @@ input_shape = nengo.transforms.ChannelShape(
     test_x[0].shape, channels_last=channels_last
 )
 assert input_shape.n_channels in (1, 3)
-assert train_x[0].shape == test_x[0].shape == input_shape.shape
-
-train_x_flat = train_x.reshape((train_x.shape[0], 1, -1))
-train_t_flat = train_t.reshape((train_t.shape[0], 1, -1))
+assert test_x[0].shape == input_shape.shape
 
 test_x_flat = test_x.reshape((test_x.shape[0], 1, -1))
-test_t_flat = test_t.reshape((test_t.shape[0], 1, -1))
 
 # --- create Nengo network
 max_rate = 150
@@ -80,7 +79,7 @@ layer_confs = [
 presentation_time = 0.2
 present_images = nengo.processes.PresentInput(test_x_flat, presentation_time)
 
-with nengo.Network() as net:
+with nengo.Network(seed=0) as net:
     net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([max_rate])
     net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
@@ -161,11 +160,13 @@ with nengo.Network() as net:
 
     output_p = nengo.Probe(x[:10], synapse=None, label="output_p")
 
-n_presentations = 10
+# n_presentations = 10
+# n_presentations = 6
 # n_presentations = 2
+n_presentations = len(test_x_flat)
 
 for conn in net.all_connections:
-    conn.synapse = nengo.synapses.Lowpass(0.01)
+    conn.synapse = None
 
 sim_time = n_presentations * presentation_time
 
@@ -180,6 +181,7 @@ with nengo_loihi.Simulator(net) as sim:
 
     print("%d blocks" % len(sim.model.blocks))
 
+    print("Running for %0.3f sim time" % sim_time)
     sim.run(sim_time)
 
 print(sim.data[output_p][-1])
