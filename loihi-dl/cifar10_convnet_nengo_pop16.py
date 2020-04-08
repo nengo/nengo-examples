@@ -7,7 +7,6 @@ import numpy as np
 import tensorflow as tf
 
 import nengo
-import nengo_dl
 import nengo_loihi
 
 # --- load dataset
@@ -116,6 +115,16 @@ with nengo.Network(seed=0) as net:
         )
         strides = (strides, strides) if isinstance(strides, int) else strides
 
+        if shape_in.n_channels == 3:
+            assert n_filters == 4
+            init = np.array([
+                [-0.02583534, 0.34387239,  0.89911214, -0.56364592],
+                [ 0.15444841, 0.88986528, -0.59163553,  0.37304742],
+                [ 0.64124068, 0.54939886,  0.66405087,  0.03240771],
+            ]).reshape((1, 1, 3, 4))
+        else:
+            init = nengo.dists.Uniform(1., 1.)
+
         transform = nengo.Convolution(
             n_filters=n_filters,
             input_shape=shape_in,
@@ -123,8 +132,10 @@ with nengo.Network(seed=0) as net:
             strides=strides,
             padding="valid",
             channels_last=channels_last,
-            init=nengo_dl.dists.Glorot(scale=1.0 / np.prod(kernel_size)),
+            init=init,
+            # init=nengo_dl.dists.Glorot(scale=1.0 / np.prod(kernel_size)),
             # init=nengo.dists.Uniform(1., 1.),
+            # init=nengo.dists.Uniform(-1., 1.),
         )
         shape_out = transform.output_shape
 
