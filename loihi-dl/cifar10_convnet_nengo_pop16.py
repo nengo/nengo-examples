@@ -1,10 +1,4 @@
-import collections
-from functools import partial
-import os
-
-import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 
 import nengo
 import nengo_loihi
@@ -12,35 +6,16 @@ import nengo_loihi
 # --- load dataset
 channels_last = True
 
-(train_x, train_y), (test_x, test_y) = tf.keras.datasets.cifar10.load_data()
-
-# test_x = test_x[:10]
-# test_x = test_x[10:20]
-# test_x = test_x[2:6]
-# test_x = test_x[2:4]
-# test_x = test_x[0:4]
+rng = np.random.RandomState(0)
+scale = 0.05
+test_x = rng.uniform(-1, 1, size=(10, 32, 32, 3)).astype(np.float32) * scale
 
 # --- this input causes problems
-test_x = test_x[0:1]
+test_x = test_x[1:2]
 
 # --- this input does not cause problems
-# test_x = test_x[1:2]
+# test_x = test_x[0:1]
 
-# q = 10
-# q = 16
-# q = 17
-# test_x = test_x[:, :q, :q, :]
-
-if not channels_last:
-    test_x = np.transpose(test_x, (0, 3, 1, 2))
-
-train_x = train_x.astype(np.float32) / 127.5 - 1
-test_x = test_x.astype(np.float32) / 127.5 - 1
-
-# train_x[:] = 0
-# test_x[:] = 0
-# train_x[:] = 1
-# test_x[:] = 1
 
 input_shape = nengo.transforms.ChannelShape(
     test_x[0].shape, channels_last=channels_last
