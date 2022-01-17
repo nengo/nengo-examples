@@ -1,0 +1,16 @@
+project_name: NengoExamples
+pkg_name: nengo_examples
+repo_name: nengo/nengo-examples
+
+copyright_start: 2016
+description: Examples using parts of the Nengo ecosystem
+
+contributing_rst: {}
+
+contributors_rst: {}
+
+setup_cfg: {}
+
+pre_commit_config_yaml: {}
+
+pyproject_toml: {}
