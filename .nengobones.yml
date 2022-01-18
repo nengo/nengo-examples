@@ -9,7 +9,16 @@ contributing_rst: {}
 
 contributors_rst: {}
 
-setup_cfg: {}
+setup_cfg:
+  pylint:
+    disable:
+      - broad-except
+      - consider-using-f-string
+      - function-redefined
+      - redefined-outer-name
+  codespell:
+    ignore_words:
+      - alha
 
 pre_commit_config_yaml: {}
 

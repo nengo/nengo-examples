@@ -43,7 +43,7 @@ Requirements
 You will need Python installed with the following packages:
 
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
-- `nengo>=2.3.0 <https://www.nengo.ai/nengo/getting_started.html>`_
+- `nengo>=3.0.0 <https://www.nengo.ai/nengo/getting_started.html>`_
 
 Usage
 =====
