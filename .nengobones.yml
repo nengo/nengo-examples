@@ -30,9 +30,11 @@ travis_yml:
   python: 3.9
   jobs:
     - script: static
+    - script: docs
 
 ci_scripts:
   - template: static
+  - template: docs
 
 pre_commit_config_yaml: {}
 

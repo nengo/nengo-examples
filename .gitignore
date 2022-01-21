@@ -23,3 +23,5 @@ checkpoint
 # --- Other saved data
 *.tar.gz
 *.npz
+*.events
+*.pkl

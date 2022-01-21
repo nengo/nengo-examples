@@ -16,7 +16,7 @@ These examples show how to integrate deep learning methods with Nengo.
 Requirements
 ============
 
-- `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
+- `jupyter <https://docs.jupyter.org/en/latest/install.html>`_
 - `matplotlib <https://matplotlib.org/users/installing.html>`_
 - `nengo>=3.0 <https://www.nengo.ai/getting-started/>`_
 - `nengo-dl>=0.5.1 <https://www.nengo.ai/nengo-dl/installation.html>`_

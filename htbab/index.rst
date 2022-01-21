@@ -38,9 +38,9 @@ They were adapted by Sugandha Sharma.
 Requirements
 ============
 
-- `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
+- `jupyter <https://docs.jupyter.org/en/latest/install.html>`_
 - `nengo>=3.0 <https://www.nengo.ai/getting-started/>`_
-- `nengo-gui <https://github.com/nengo/nengo-gui#installation>`_
+- `nengo-gui <https://github.com/nengo/nengo-gui>`_
 
 License
 =======

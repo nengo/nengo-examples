@@ -21,6 +21,13 @@ jobs:
   -
     env:
       SCRIPT="static"
+  -
+    env:
+      SCRIPT="docs"
+    addons:
+      apt:
+        packages:
+          - pandoc
 
 before_install:
   # export travis_terminate for use in scripts, from here:

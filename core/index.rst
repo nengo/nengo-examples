@@ -18,7 +18,7 @@ or answer common questions.
 Requirements
 ============
 
-- `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
+- `jupyter <https://docs.jupyter.org/en/latest/install.html>`_
 - `matplotlib <https://matplotlib.org/users/installing.html>`_
 - `nengo>=3.0 <https://www.nengo.ai/getting-started/>`_
 

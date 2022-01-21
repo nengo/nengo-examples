@@ -1,0 +1,25 @@
+{% extends "templates/docs.sh.template" %}
+
+{% block script %}
+    shopt -s globstar
+    # undo single-branch cloning
+    git config --replace-all remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
+    git fetch origin docs-evaluated
+    git checkout origin/docs-evaluated -- **/*.ipynb
+
+    if [ -d "{{ docs_dir }}" ]; then exe rm -Rf {{ docs_dir }}; fi
+    exe git clone -b gh-pages-release https://github.com/{{ repo_name }}.git {{ docs_dir }}
+
+    FAILED_FILE="$TRAVIS_JOB_NUMBER.failed"
+    rm -f "$FAILED_FILE"
+
+    sphinx-build -b html . {{ docs_dir }} -vW --keep-going -A building_version=latest -A releases="" || touch "$FAILED_FILE"
+
+    if [[ -e "$FAILED_FILE" ]]; then
+        echo -e "\033[1;31mCOMMAND 'sphinx-build' FAILED\033[0m"
+        STATUS=1
+    fi
+
+    exe sphinx-build -b linkcheck -vW -D nbsphinx_execute=never . _build
+    exe sphinx-build -b doctest -vW -D nbsphinx_execute=never . _build
+{% endblock %}
