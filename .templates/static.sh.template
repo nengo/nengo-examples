@@ -1,0 +1,17 @@
+{% extends "templates/static.sh.template" %}
+
+{% block script %}
+    exe bones-format-notebook . --verbose --check
+
+    exe shellcheck -e SC2087 .ci/*.sh
+    # undo single-branch cloning
+    git config --replace-all remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
+    git fetch origin {{ main_branch }}
+    N_COMMITS=$(git rev-list --count HEAD ^origin/{{ main_branch }})
+    for ((i=0; i<N_COMMITS; i++)) do
+        {# TODO: way to get this working properly with exe? #}
+        git log -n 1 --skip "$i" --pretty=%B \
+            | grep -v '^Co-authored-by:' \
+            | gitlint -vvv || STATUS=1
+    done
+{% endblock %}

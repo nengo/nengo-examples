@@ -26,6 +26,14 @@ setup_cfg:
 
 setup_py: {}
 
+travis_yml:
+  python: 3.9
+  jobs:
+    - script: static
+
+ci_scripts:
+  - template: static
+
 pre_commit_config_yaml: {}
 
 pyproject_toml: {}

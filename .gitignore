@@ -12,6 +12,7 @@ log.txt
 .cache
 .tox
 *.class
+.ci/
 
 # --- Saved Tensorflow params
 checkpoint
