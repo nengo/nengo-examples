@@ -9,6 +9,10 @@ contributing_rst: {}
 
 contributors_rst: {}
 
+docs_conf_py:
+  output_name: conf.py
+  tagmanager_id: GTM-KWCR2HN
+
 setup_cfg:
   pylint:
     disable:
@@ -20,6 +24,12 @@ setup_cfg:
     ignore_words:
       - alha
 
+setup_py: {}
+
 pre_commit_config_yaml: {}
 
 pyproject_toml: {}
+
+version_py:
+  type: calver
+  release: false

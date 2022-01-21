@@ -1,13 +1,14 @@
-**************
-Nengo examples
-**************
+*************
+NengoExamples
+*************
 
-This repository contains example Nengo models.
-Each folder contains a different set of examples,
-which may require different parts of the Nengo ecosystem
-(e.g., the Nengo GUI),
-different external packages
-(e.g., the Jupyter notebook)
-and may be licensed differently.
-Please see the README in each folder for more information
-on how to run those specific examples.
+Example models using various parts of the
+`Nengo ecosystem <https://www.nengo.ai/documentation/>`_.
+
+The examples rendered here are stored as Jupyter notebooks
+in the `NengoExamples repository <https://github.com/nengo/nengo-examples>`_.
+To try out these examples for yourself,
+clone the repository and open the examples `with the Jupyter notebook
+<http://jupyter.readthedocs.io/en/latest/running.html>`_.
+Each set of examples may have a different set of requirements
+that you will have to install with ``pip``.

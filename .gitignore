@@ -19,5 +19,6 @@ checkpoint
 *.meta
 *.data-*-of-*
 
-# --- Example specific
-cifar-10-python.tar.gz
+# --- Other saved data
+*.tar.gz
+*.npz

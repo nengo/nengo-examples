@@ -2,8 +2,7 @@
 Ablating neurons
 ****************
 
-The Jupyter notebooks in this directory
-emulate the ablation of neurons
+These examples emulate the ablation of neurons
 by setting the encoders of those neurons to 0,
 and setting the bias of those neurons to a large negative number.
 
@@ -33,31 +32,28 @@ The function of interest is::
             bias_sig.setflags(write=True)
             bias_sig[idx] = -1000
 
-The notebooks in this directory show how this can be applied
-in a simple model (``ablate_ensemble.py``)
-and a more complicated SPA model (``ablate_spa.py``).
+Examples
+========
+
+The follow examples show how this can be applied
+in a simple model and a more complicated SPA model.
+
+.. toctree::
+   :maxdepth: 1
+
+   ablate-ensemble
+   ablate-spa
 
 Requirements
 ============
 
-You will need Python installed with the following packages:
-
 - `jupyter <http://jupyter.readthedocs.io/en/latest/install.html>`_
-- `nengo>=3.0.0 <https://www.nengo.ai/nengo/getting_started.html>`_
-
-Usage
-=====
-
-To run these notebooks,
-`start the Jupyter notebook <http://jupyter.readthedocs.io/en/latest/running.html>`_
-and navigate to this directory.
-Click on the ``.ipynb`` file you wish to run.
+- `matplotlib <https://matplotlib.org/users/installing.html>`_
+- `nengo>=3.0 <https://www.nengo.ai/getting-started/>`_
 
 License
 =======
 
-This example is copyright Applied Brain Research
-and is licensed with the
-`Nengo license <https://www.nengo.ai/nengo/license.html>`_,
-which permits using, copying, sharing, and making derivative works
-for any non-commercial purpose.
+Copyright (c) 2017-2022 Applied Brain Research
+
+.. include:: ../NENGO_LICENSE.rst

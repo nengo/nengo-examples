@@ -1,3 +1,0 @@
-jupyter
-matplotlib
-nengo-dl>=0.5.1
