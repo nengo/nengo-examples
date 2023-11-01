@@ -9,6 +9,3 @@ NengoExamples contributors
 See https://github.com/nengo/nengo-examples/graphs/contributors
 for a list of the people who have committed to NengoExamples.
 Thank you for your contributions!
-
-For the full list of the many contributors to the Nengo ecosystem,
-see https://www.nengo.ai/people/.
