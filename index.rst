@@ -10,5 +10,6 @@
    lmu/index
    ablate/index
    deeplearning/index
+   lamprey/index
 
 .. include:: LICENSE.rst
