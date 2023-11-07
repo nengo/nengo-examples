@@ -6,6 +6,8 @@
    loihi/index
    htbab/index
    core/index
+   network-design/index
+   lmu/index
    ablate/index
    deeplearning/index
 

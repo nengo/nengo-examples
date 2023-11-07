@@ -1,21 +1,20 @@
-*********
-NengoCore
-*********
+**************
+Network design
+**************
 
 Examples
 ========
 
-These examples use NengoCore and no extra packages.
-They show off some lesser known features,
-answer common questions,
-and present an example reusable network.
+These examples describe in-depth how to
+design a network,
+from initial ideas to several instantiations
+with different properties.
 
 .. toctree::
    :maxdepth: 1
 
-   reuse-connection-weights
-   thresholding
-   integrator-network
+   network-design
+   network-design-advanced
 
 Requirements
 ============
@@ -29,4 +28,5 @@ License
 
 Copyright (c) 2016-2023 Applied Brain Research
 
-.. include:: ../GPL_V2_LICENSE.rst
+.. include:: ../NENGO_LICENSE.rst
+
